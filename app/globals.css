@@ -150,106 +150,81 @@
 
 * { box-sizing: border-box; }
 
+/* ── Sign-in, consent and message screens ─────────────────────────────────
+   Rebuilt on the tokens. These were the last screens still on hand-written
+   colours; they now use the same @layer components as everything else, so a
+   token change moves the whole product rather than half of it.
 
+   Written as classes rather than utilities on every element because the same
+   card and field appear on four screens across two components, and the
+   alternative is the same forty characters repeated in each. */
 
 #app {
   /* dvh, not vh: on mobile Safari 100vh is taller than what you can see, so
-     the leave button ends up under the browser chrome. */
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
+     the button at the bottom ends up under the browser chrome. */
+  @apply flex min-h-[100dvh] flex-col;
 }
 
 .bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid hsl(var(--line));
+  @apply flex items-center justify-between border-b border-line px-4 py-3;
 }
 
-.brand { font-weight: 700; letter-spacing: 0.04em; }
-.status { color: hsl(var(--ink-muted)); font-size: 13px; }
+.brand { @apply text-[15px] font-bold tracking-[0.04em]; }
+.status { @apply text-[13px] text-ink-muted; }
 
-.view { flex: 1; display: flex; }
-.view[hidden] { display: none; }
+.view { @apply flex flex-1; }
+.view[hidden] { @apply hidden; }
 
 .card {
-  margin: auto;
-  width: 100%;
-  max-width: 460px;
-  padding: 24px;
-  background: hsl(var(--surface));
-  border: 1px solid hsl(var(--line));
-  border-radius: 14px;
+  @apply m-auto w-full max-w-[460px] rounded-xl2 border border-line
+         bg-surface p-6;
 }
 
-/* On a phone the card is the page — a floating box with margins wastes the
-   width where the consent text needs to be readable. */
+/* On a phone the card IS the page. A floating box with margins wastes width
+   exactly where the consent text needs to be readable. */
 @media (max-width: 520px) {
-  .card { border: 0; border-radius: 0; margin: 0; }
-  .view { align-items: stretch; }
+  .card { @apply m-0 rounded-none border-0; }
+  .view { @apply items-stretch; }
 }
 
-h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em; }
-.muted { color: hsl(var(--ink-muted)); font-size: 14px; margin: 0 0 16px; }
+.card h1 { @apply mb-1.5 text-[20px] font-semibold tracking-[-0.01em]; }
+.muted { @apply mb-4 text-[14px] text-ink-muted; }
 
-label { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 600; }
+.card label { @apply mb-1.5 mt-3.5 block text-[13px] font-semibold; }
 
-input[type="email"], input[type="password"], select {
-  width: 100%;
-  padding: 11px 12px;
-  /* 16px, so iOS does not zoom the whole page when the field is focused. */
-  font-size: 16px;
-  color: hsl(var(--ink));
-  background: var(--bg);
-  border: 1px solid hsl(var(--line));
-  border-radius: 9px;
+.card input[type="email"],
+.card input[type="password"],
+.card input[type="text"],
+.card select {
+  @apply field;
 }
 
-input:focus, select:focus { outline: 2px solid hsl(var(--accent)); outline-offset: 1px; }
+.card button { @apply btn-primary mt-4; }
 
-button {
-  width: 100%;
-  margin-top: 18px;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: hsl(var(--accent-ink));
-  background: hsl(var(--accent));
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-}
-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.error { @apply mt-3 text-[14px] text-danger; }
 
-.error { margin: 12px 0 0; color: hsl(var(--danger)); font-size: 14px; }
-
+/* The hard warning. Bullets, because a paragraph gets skimmed and a list gets
+   read — and each line is a separate thing somebody needs to know. */
 .notice {
-  margin: 16px 0;
-  padding: 14px;
-  background: var(--notice-bg);
-  border: 1px solid var(--notice-line);
-  border-radius: 10px;
-  font-size: 14px;
-  line-height: 1.55;
+  @apply my-4 rounded-xl border border-warning/35 bg-warning/10 p-3.5
+         text-[14px] leading-[1.55];
 }
-.notice p { margin: 0; }
+.notice p { @apply m-0; }
+.notice .lead { @apply mb-2.5 font-semibold; }
+.notice ul { @apply m-0 pl-[18px]; }
+.notice li { @apply mt-[7px]; }
+.notice li::marker { color: hsl(var(--danger)); }
 
-.facts { margin: 0; padding: 0; list-style: none; color: hsl(var(--ink-muted)); font-size: 13px; }
-.facts li { margin-top: 4px; }
-.facts li:empty { display: none; }
+.facts { @apply m-0 list-none p-0 text-[13px] text-ink-muted; }
+.facts li { @apply mt-1; }
+.facts li:empty { @apply hidden; }
 
 .check {
-  display: flex;
-  gap: 10px;
-  margin: 18px 0 0;
-  font-size: 13.5px;
-  font-weight: 400;
-  line-height: 1.5;
-  color: hsl(var(--ink));
+  @apply mt-4 flex gap-2.5 text-[13.5px] font-normal leading-[1.5] text-ink;
 }
-.check input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; }
+.check input {
+  @apply mt-[3px] h-[18px] w-[18px] shrink-0 accent-[hsl(var(--accent))];
+}
 
 /* ─── In the session ─────────────────────────────────────────────────────── */
 
