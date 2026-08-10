@@ -1,51 +1,153 @@
-/*
-  One screen, two themes, no framework.
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  Sized for a phone held in one hand at the start of a session, which is where
-  most of these will be opened. Nothing here is decorative enough to be worth a
-  build step.
-*/
+/**
+ * Tokens as bare HSL channels — "222 14% 8%", not "#0d1014".
+ *
+ * That is what lets Tailwind compose opacity: `bg-surface/60` expands to
+ * hsl(var(--surface) / 0.6). Given a finished `hsl(...)` string it cannot, and
+ * every colour in the app becomes opaque-only. Same approach as the gym
+ * dashboard, so the two read as one product.
+ */
 
-:root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --line: #e3e6ea;
-  --ink: #14171c;
-  --ink-muted: #5b626d;
-  --accent: #1a56db;
-  --accent-ink: #ffffff;
-  --danger: #b42318;
-  --notice-bg: #fff8e6;
-  --notice-line: #f2d99a;
-  --stage: #101318;
+@layer base {
+  :root {
+    --canvas: 220 20% 97%;
+    --surface: 0 0% 100%;
+    --surface-raised: 220 20% 99%;
+    --line: 220 14% 90%;
+
+    --ink: 220 20% 10%;
+    --ink-muted: 220 9% 40%;
+    --ink-subtle: 220 9% 55%;
+
+    --accent: 221 83% 48%;
+    --accent-ink: 0 0% 100%;
+
+    --danger: 4 74% 46%;
+    --danger-ink: 0 0% 100%;
+
+    --warning: 38 92% 40%;
+    --warning-ink: 30 60% 20%;
+
+    --success: 152 60% 32%;
+
+    /* Dark in both themes, deliberately. Video reads against black, and a
+       light stage makes every camera look washed out. */
+    --stage: 220 26% 5%;
+
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: 220 24% 6%;
+      --surface: 220 20% 10%;
+      --surface-raised: 220 18% 13%;
+      --line: 220 14% 20%;
+
+      --ink: 220 20% 95%;
+      --ink-muted: 220 10% 65%;
+      --ink-subtle: 220 8% 50%;
+
+      --accent: 221 83% 65%;
+      --accent-ink: 220 26% 8%;
+
+      --danger: 4 80% 68%;
+      --danger-ink: 220 26% 8%;
+
+      --warning: 38 90% 62%;
+      --warning-ink: 38 40% 12%;
+
+      --success: 152 50% 60%;
+
+      color-scheme: dark;
+    }
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* 16px minimum, or iOS zooms the whole page when a field takes focus —
+     which on a join screen looks like the page breaking. */
+  input, select, textarea {
+    font-size: 16px;
+  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1014;
-    --surface: #161a20;
-    --line: #262c35;
-    --ink: #eef1f5;
-    --ink-muted: #9aa3ae;
-    --accent: #5b8bf0;
-    --accent-ink: #0d1014;
-    --danger: #f27a70;
-    --notice-bg: #241f14;
-    --notice-line: #4a3d22;
-    --stage: #05070a;
+@layer components {
+  /**
+   * The round control button, the shape both Zoom and Meet settled on.
+   *
+   * Circular, icon-first, with the label underneath only where there is room.
+   * A row of text buttons does not fit a 375px phone — six labels overflow,
+   * which is what the previous version did and why it scrolled.
+   */
+  .ctrl-btn {
+    @apply grid h-12 w-12 shrink-0 place-items-center rounded-full
+           bg-white/10 text-white transition-colors
+           hover:bg-white/20 focus-visible:outline focus-visible:outline-2
+           focus-visible:outline-offset-2 focus-visible:outline-white/60
+           disabled:opacity-40 disabled:hover:bg-white/10;
   }
+
+  /* Pressed means "this is off" for mic and camera — the inverted fill is how
+     both apps show a muted state, and it reads at a glance in a thumbnail. */
+  .ctrl-btn[aria-pressed="true"] {
+    @apply bg-white text-stage hover:bg-white/90;
+  }
+
+  .ctrl-btn-danger {
+    /* Wider, because hanging up is the one control you should never hit by
+       accident and never hunt for. */
+    @apply w-auto gap-2 rounded-full bg-danger px-5 text-danger-ink hover:bg-danger/90;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-line bg-canvas px-3 py-2.5 text-ink
+           outline-none transition-colors placeholder:text-ink-subtle
+           focus:border-accent focus:ring-2 focus:ring-accent/25;
+  }
+
+  .btn-primary {
+    @apply w-full rounded-lg bg-accent px-4 py-2.5 text-[15px] font-semibold
+           text-accent-ink transition-opacity hover:opacity-90
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-quiet {
+    @apply rounded-lg px-4 py-2.5 text-[15px] font-medium text-ink-muted
+           transition-colors hover:bg-canvas hover:text-ink;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LEGACY — being replaced screen by screen
+
+   The hand-written rules from before Tailwind, kept so screens that have not
+   been converted yet keep working. Deleting them in one go would leave every
+   page unstyled, which is a worse state than a stylesheet with two halves.
+
+   Delete a block when its screen moves to Tailwind. When this section is
+   empty, delete the section.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg: hsl(var(--canvas));
+  --notice-bg: hsl(var(--warning) / 0.12);
+  --notice-line: hsl(var(--warning) / 0.35);
 }
 
 * { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--ink);
-  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
+
 
 #app {
   /* dvh, not vh: on mobile Safari 100vh is taller than what you can see, so
@@ -60,11 +162,11 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid hsl(var(--line));
 }
 
 .brand { font-weight: 700; letter-spacing: 0.04em; }
-.status { color: var(--ink-muted); font-size: 13px; }
+.status { color: hsl(var(--ink-muted)); font-size: 13px; }
 
 .view { flex: 1; display: flex; }
 .view[hidden] { display: none; }
@@ -74,8 +176,8 @@ html, body {
   width: 100%;
   max-width: 460px;
   padding: 24px;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: hsl(var(--surface));
+  border: 1px solid hsl(var(--line));
   border-radius: 14px;
 }
 
@@ -87,7 +189,7 @@ html, body {
 }
 
 h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em; }
-.muted { color: var(--ink-muted); font-size: 14px; margin: 0 0 16px; }
+.muted { color: hsl(var(--ink-muted)); font-size: 14px; margin: 0 0 16px; }
 
 label { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 600; }
 
@@ -96,13 +198,13 @@ input[type="email"], input[type="password"], select {
   padding: 11px 12px;
   /* 16px, so iOS does not zoom the whole page when the field is focused. */
   font-size: 16px;
-  color: var(--ink);
+  color: hsl(var(--ink));
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid hsl(var(--line));
   border-radius: 9px;
 }
 
-input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+input:focus, select:focus { outline: 2px solid hsl(var(--accent)); outline-offset: 1px; }
 
 button {
   width: 100%;
@@ -110,15 +212,15 @@ button {
   padding: 12px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: hsl(var(--accent-ink));
+  background: hsl(var(--accent));
   border: 0;
   border-radius: 9px;
   cursor: pointer;
 }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.error { margin: 12px 0 0; color: var(--danger); font-size: 14px; }
+.error { margin: 12px 0 0; color: hsl(var(--danger)); font-size: 14px; }
 
 .notice {
   margin: 16px 0;
@@ -131,7 +233,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .notice p { margin: 0; }
 
-.facts { margin: 0; padding: 0; list-style: none; color: var(--ink-muted); font-size: 13px; }
+.facts { margin: 0; padding: 0; list-style: none; color: hsl(var(--ink-muted)); font-size: 13px; }
 .facts li { margin-top: 4px; }
 .facts li:empty { display: none; }
 
@@ -142,17 +244,17 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: 13.5px;
   font-weight: 400;
   line-height: 1.5;
-  color: var(--ink);
+  color: hsl(var(--ink));
 }
 .check input { margin-top: 3px; width: 18px; height: 18px; flex: 0 0 auto; }
 
 /* ─── In the session ─────────────────────────────────────────────────────── */
 
-.room { flex-direction: column; background: var(--stage); }
+.room { flex-direction: column; background: hsl(var(--stage)); }
 
 .stage { position: relative; flex: 1; min-height: 0; }
 
-.tile { background: var(--stage); overflow: hidden; }
+.tile { background: hsl(var(--stage)); overflow: hidden; }
 
 .remote { position: absolute; inset: 0; display: grid; place-items: center; }
 
@@ -175,7 +277,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   display: flex;
   gap: 8px;
   padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
-  background: var(--stage);
+  background: hsl(var(--stage));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -188,7 +290,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   background: rgba(255, 255, 255, 0.1);
 }
 .ctrl[aria-pressed="true"] { background: rgba(255, 255, 255, 0.26); }
-.ctrl.danger { background: var(--danger); color: #fff; }
+.ctrl.danger { background: hsl(var(--danger)); color: #fff; }
 
 /* The hard warning. Bullet points, because a paragraph gets skimmed and a list
    gets read — and each line here is a separate thing someone needs to know. */
@@ -207,7 +309,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
 .notice li::marker {
-  color: var(--danger);
+  color: hsl(var(--danger));
 }
 
 /* Four controls, and on a narrow phone they wrap rather than shrink to
@@ -218,7 +320,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .bar-error {
   margin: 0;
   padding: 8px 14px;
-  background: var(--danger);
+  background: hsl(var(--danger));
   color: #fff;
   font-size: 13px;
   text-align: center;
@@ -232,8 +334,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chat {
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
+  background: hsl(var(--surface));
+  border-top: 1px solid hsl(var(--line));
   max-height: 50%;
 }
 
@@ -245,7 +347,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
     flex: 0 0 320px;
     max-height: none;
     border-top: 0;
-    border-left: 1px solid var(--line);
+    border-left: 1px solid hsl(var(--line));
   }
 }
 
@@ -254,7 +356,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid hsl(var(--line));
   font-size: 13px;
   font-weight: 600;
 }
@@ -264,14 +366,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   margin: 0;
   padding: 0 6px;
   background: none;
-  color: var(--ink-muted);
+  color: hsl(var(--ink-muted));
   font-size: 20px;
   line-height: 1;
 }
 
 .chat-list { flex: 1; overflow-y: auto; padding: 12px 14px; }
 
-.chat-empty { margin: 0; color: var(--ink-muted); font-size: 13px; line-height: 1.5; }
+.chat-empty { margin: 0; color: hsl(var(--ink-muted)); font-size: 13px; line-height: 1.5; }
 
 .msg {
   margin: 0 0 8px;
@@ -279,29 +381,29 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   max-width: 85%;
   border-radius: 12px;
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid hsl(var(--line));
   font-size: 14px;
   overflow-wrap: anywhere;
 }
 
 .msg.mine {
   margin-left: auto;
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  background: hsl(var(--accent));
+  border-color: hsl(var(--accent));
+  color: hsl(var(--accent-ink));
 }
 
-.chat-error { margin: 0; padding: 0 14px 8px; color: var(--danger); font-size: 13px; }
+.chat-error { margin: 0; padding: 0 14px 8px; color: hsl(var(--danger)); font-size: 13px; }
 
-.chat-form { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.chat-form { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid hsl(var(--line)); }
 .chat-form input { flex: 1; }
 .chat-form button { width: auto; margin: 0; padding: 10px 16px; }
 
 /* ─── Made links ────────────────────────────────────────────────────────── */
 
-.links { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+.links { margin-top: 22px; border-top: 1px solid hsl(var(--line)); padding-top: 18px; }
 
-.link + .link { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
+.link + .link { margin-top: 16px; border-top: 1px solid hsl(var(--line)); padding-top: 16px; }
 
 .link-label { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
 
@@ -311,14 +413,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12.5px;
-  color: var(--ink-muted);
+  color: hsl(var(--ink-muted));
   overflow-wrap: anywhere;
   user-select: all;
 }
 
 .link button { margin-top: 10px; }
 
-.link-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); }
+.link-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: hsl(var(--ink-muted)); }
 
 /* Google's button draws itself; this only positions it and separates it from
    the password form below. */
@@ -330,28 +432,28 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   align-items: center;
   gap: 10px;
   margin: 16px 0 0;
-  color: var(--ink-muted);
+  color: hsl(var(--ink-muted));
   font-size: 12.5px;
 }
 .or::before, .or::after {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--line);
+  background: hsl(var(--line));
 }
 
 /* ─── Health record ─────────────────────────────────────────────────────── */
 
 .health-facts { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 14px; }
-.health-facts dt { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-subtle, var(--ink-muted)); }
+.health-facts dt { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-subtle, hsl(var(--ink-muted))); }
 .health-facts dd { margin: 2px 0 0; font-size: 14px; text-transform: capitalize; }
 
-.health-head { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); }
+.health-head { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: hsl(var(--ink-muted)); }
 
-.health-row { padding: 8px 0; border-top: 1px solid var(--line); }
-.health-when { margin: 0; font-size: 12px; color: var(--ink-muted); }
+.health-row { padding: 8px 0; border-top: 1px solid hsl(var(--line)); }
+.health-when { margin: 0; font-size: 12px; color: hsl(var(--ink-muted)); }
 .health-values { margin: 3px 0 0; font-size: 13.5px; line-height: 1.5; }
-.health-remarks { margin: 3px 0 0; font-size: 12.5px; color: var(--ink-muted); }
+.health-remarks { margin: 3px 0 0; font-size: 12.5px; color: hsl(var(--ink-muted)); }
 
 /* Allergies and medication are the things it is dangerous to miss, so they
    get the one loud box on this panel. */
@@ -367,9 +469,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .health-alert p { margin: 0 0 4px; }
 .health-alert p:last-child { margin: 0; }
 
-.health-saved { margin: 0; padding: 8px 14px; background: var(--accent); color: var(--accent-ink); font-size: 13px; text-align: center; }
+.health-saved { margin: 0; padding: 8px 14px; background: hsl(var(--accent)); color: hsl(var(--accent-ink)); font-size: 13px; text-align: center; }
 
-.health-form { padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); overflow-y: auto; }
+.health-form { padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid hsl(var(--line)); overflow-y: auto; }
 .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
 .health-form label { margin: 0; font-size: 12px; font-weight: 500; }
 .health-form input { margin-top: 4px; padding: 9px 10px; }
@@ -395,7 +497,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   display: block;
   flex: 1;
   min-height: 0;
-  background: var(--stage);
+  background: hsl(var(--stage));
   overflow: hidden;
 }
 
@@ -504,7 +606,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   width: min(360px, 100%);
   max-height: none;
   border: 0;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid hsl(var(--line));
   box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4);
 }
 
@@ -514,7 +616,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
     width: 100%;
     height: 62%;
     border-left: 0;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid hsl(var(--line));
     border-radius: 16px 16px 0 0;
   }
   /* Out of the panel's way when it is open. */
