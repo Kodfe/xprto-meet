@@ -166,8 +166,13 @@
 }
 
 .bar {
-  @apply flex items-center justify-between border-b border-line px-4 py-3;
+  @apply flex items-center justify-between px-5 py-4;
 }
+
+/* No rule under it on the entry screens: a border there cuts the page in two
+   and makes the card look like content inside an app rather than the whole
+   point of the page. The call keeps its bar solid. */
+.bar-ruled { @apply border-b border-line; }
 
 .brand { @apply text-[15px] font-bold tracking-[0.04em]; }
 .status { @apply text-[13px] text-ink-muted; }
@@ -175,9 +180,22 @@
 .view { @apply flex flex-1; }
 .view[hidden] { @apply hidden; }
 
+/* The card, given some presence.
+   It was a flat rectangle with a hairline — correct, and it looked like a
+   form on a page rather than a product. Depth, a wider gutter and a warmer
+   surface make it read as a thing you are being handed. */
 .card {
-  @apply m-auto w-full max-w-[460px] rounded-xl2 border border-line
-         bg-surface p-6;
+  @apply m-auto w-full max-w-[420px] rounded-2xl border border-line
+         bg-surface-raised px-7 py-8
+         shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_32px_-12px_rgb(0_0_0/0.25)];
+}
+
+/* A soft light behind it, so the card sits ON something. Two stops only —
+   anything busier competes with the thing people came here to read. */
+.view {
+  background-image:
+    radial-gradient(60rem 30rem at 50% -10%, hsl(var(--accent) / 0.10), transparent 60%),
+    radial-gradient(40rem 24rem at 100% 100%, hsl(var(--accent) / 0.06), transparent 55%);
 }
 
 /* On a phone the card IS the page. A floating box with margins wastes width
@@ -187,10 +205,15 @@
   .view { @apply items-stretch; }
 }
 
-.card h1 { @apply mb-1.5 text-[20px] font-semibold tracking-[-0.01em]; }
-.muted { @apply mb-4 text-[14px] text-ink-muted; }
+/* A clearer step down from heading to explanation. 20px next to 14px was flat;
+   the heading is the only thing anyone reads before deciding what to do. */
+.card h1 { @apply mb-2 text-[24px] font-semibold leading-tight tracking-[-0.02em]; }
+.muted { @apply mb-5 text-[14.5px] leading-relaxed text-ink-muted; }
 
-.card label { @apply mb-1.5 mt-3.5 block text-[13px] font-semibold; }
+.card label {
+  @apply mb-1.5 mt-4 block text-[12.5px] font-semibold uppercase
+         tracking-[0.05em] text-ink-muted;
+}
 
 .card input[type="email"],
 .card input[type="password"],
@@ -199,7 +222,7 @@
   @apply field;
 }
 
-.card button { @apply btn-primary mt-4; }
+.card button { @apply btn-primary mt-6 py-3 text-[15px]; }
 
 .error { @apply mt-3 text-[14px] text-danger; }
 
