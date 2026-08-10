@@ -5,6 +5,10 @@ import type {
     IAgoraRTCClient, IAgoraRTCRemoteUser, ICameraVideoTrack, ILocalVideoTrack,
     IMicrophoneAudioTrack,
 } from "agora-rtc-sdk-ng";
+import {
+    ClipboardList, Loader2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX,
+    PhoneOff, UserX, Video, VideoOff,
+} from "lucide-react";
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
 import { Chat } from "@/components/Chat";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
@@ -156,7 +160,30 @@ export function SessionRoom({ slug }: { slug: string }) {
     const [healthOpen, setHealthOpen] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
     const [peerVideo, setPeerVideo] = useState(false);
-    const [peerNote, setPeerNote] = useState("Waiting for the other person to join…");
+    const [peerAudio, setPeerAudio] = useState(false);
+    const [peerHere, setPeerHere] = useState(false);
+    const [peerLeft, setPeerLeft] = useState(false);
+
+    /**
+     * Who is talking, as a level rather than a boolean.
+     *
+     * Agora reports volume 0-100 several times a second. Rendering that raw
+     * makes the ring strobe on every consonant, so it is damped: a level has to
+     * clear a threshold to light up, and it stays lit briefly after speech
+     * stops. That is what makes the indicator read as "this person is
+     * speaking" rather than as a flicker.
+     */
+    const [speaking, setSpeaking] = useState<{ local: boolean; peer: boolean }>({ local: false, peer: false });
+    const speakingUntil = useRef<{ local: number; peer: number }>({ local: 0, peer: 0 });
+
+    /**
+     * What to call the other person.
+     *
+     * Not a name. The preview deliberately carries none, and in a call with
+     * exactly two people the role is the useful label anyway — which also
+     * means one less field to leak into a payload kept deliberately thin.
+     */
+    const peerLabel = preview?.you_are === "trainer" ? "Your client" : "Your trainer";
 
     const localBox = useRef<HTMLDivElement | null>(null);
     const remoteBox = useRef<HTMLDivElement | null>(null);
@@ -240,25 +267,53 @@ export function SessionRoom({ slug }: { slug: string }) {
 
             rtc.on("user-published", async (user: IAgoraRTCRemoteUser, kind) => {
                 await rtc.subscribe(user, kind);
+                setPeerHere(true);
+                setPeerLeft(false);
                 if (kind === "video" && remoteBox.current) {
                     setPeerVideo(true);
                     user.videoTrack?.play(remoteBox.current);
                 }
-                if (kind === "audio") user.audioTrack?.play();
+                if (kind === "audio") {
+                    setPeerAudio(true);
+                    user.audioTrack?.play();
+                }
                 setStatus("Connected");
             });
 
+            // Unpublishing is how the other side's mute and camera-off reach us.
+            // Tracked separately, because "camera off" and "muted" are different
+            // things to show and the old code only noticed video.
             rtc.on("user-unpublished", (_user, kind) => {
-                if (kind === "video") {
-                    setPeerVideo(false);
-                    setPeerNote("Their camera is off.");
-                }
+                if (kind === "video") setPeerVideo(false);
+                if (kind === "audio") setPeerAudio(false);
             });
 
             rtc.on("user-left", () => {
                 setPeerVideo(false);
-                setPeerNote("They have left the session.");
+                setPeerAudio(false);
+                setPeerHere(false);
+                setPeerLeft(true);
                 setStatus("They left");
+            });
+
+            // 400ms is Agora's minimum useful interval; faster reports more
+            // noise than speech.
+            rtc.enableAudioVolumeIndicator();
+            rtc.on("volume-indicator", volumes => {
+                const now = Date.now();
+                const next = { ...speakingUntil.current };
+
+                for (const { uid, level } of volumes) {
+                    // 12 clears breathing and keyboard noise but catches a quiet
+                    // voice. 900ms of hold is roughly the gap between words, so
+                    // the ring does not blink through a sentence.
+                    if (level > 12) {
+                        const who = Number(uid) === Number(credentials.uid) ? "local" : "peer";
+                        next[who] = now + 900;
+                    }
+                }
+                speakingUntil.current = next;
+                setSpeaking({ local: next.local > now, peer: next.peer > now });
             });
 
             await rtc.join(credentials.app_id, credentials.channel, credentials.token, credentials.uid);
@@ -501,20 +556,66 @@ export function SessionRoom({ slug }: { slug: string }) {
             })()}
 
             {view === "room" && (
-                <section className="view room">
-                    <div className="stage">
-                        <div ref={remoteBox} className="tile remote">
-                            {!peerVideo && <p className="waiting">{peerNote}</p>}
+                <section className="relative flex-1 overflow-hidden bg-stage">
+                    {/* The other person, edge to edge. The speaking ring is inset
+                        rather than a border so it cannot shift the layout when it
+                        appears — a stage that nudges every time somebody talks is
+                        worse than no indicator at all. */}
+                    <div className="absolute inset-0">
+                        <div ref={remoteBox} className="absolute inset-0 [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
+
+                        {!peerVideo && (
+                            <div className="absolute inset-0 grid place-items-center">
+                                <div className="flex flex-col items-center gap-3 px-6 text-center">
+                                    <div className="grid h-20 w-20 place-items-center rounded-full bg-white/10 text-white/70">
+                                        {peerLeft ? <UserX className="h-8 w-8" /> : peerHere ? <VideoOff className="h-8 w-8" /> : <Loader2 className="h-8 w-8 animate-spin" />}
+                                    </div>
+                                    <p className="text-[14px] text-white/60">
+                                        {peerLeft
+                                            ? peerLabel + " has left the session."
+                                            : peerHere
+                                                ? peerLabel + "’s camera is off."
+                                                : "Waiting for " + peerLabel.toLowerCase() + " to join…"}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {speaking.peer && (
+                            <div className="pointer-events-none absolute inset-0 ring-4 ring-inset ring-accent/70" aria-hidden="true" />
+                        )}
+
+                        {peerHere && (
+                            <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 backdrop-blur-sm">
+                                <span className="text-[13px] font-medium text-white">{peerLabel}</span>
+                                {!peerAudio && <MicOff className="h-3.5 w-3.5 text-danger" aria-label="Muted" />}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Self-view. Bordered, rounded, and labelled — without a label
+                        people mistake it for the other person on a phone. */}
+                    <div className="absolute bottom-24 right-4 z-20 h-[113px] w-[200px] overflow-hidden rounded-xl2 border border-white/15 bg-stage shadow-tile max-[700px]:bottom-[88px] max-[700px]:h-32 max-[700px]:w-24">
+                        <div ref={localBox} className="absolute inset-0 [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
+
+                        {!camOn && !sharing && (
+                            <div className="absolute inset-0 grid place-items-center bg-stage">
+                                <VideoOff className="h-6 w-6 text-white/50" />
+                            </div>
+                        )}
+
+                        {speaking.local && (
+                            <div className="pointer-events-none absolute inset-0 rounded-xl2 ring-2 ring-inset ring-accent" aria-hidden="true" />
+                        )}
+
+                        <div className="pointer-events-none absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5">
+                            <span className="text-[11px] font-medium text-white">You</span>
+                            {!micOn && <MicOff className="h-3 w-3 text-danger" aria-label="Muted" />}
                         </div>
-                        <div ref={localBox} className="tile local" />
                     </div>
 
                     {healthOpen && preview?.booking_id ? (
-                        <HealthPanel
-                            slug={slug}
-                            token={token.current}
-                            onClose={() => setHealthOpen(false)}
-                        />
+                        <HealthPanel slug={slug} token={token.current} onClose={() => setHealthOpen(false)} />
                     ) : null}
 
                     {chatOpen && preview?.booking_id ? (
@@ -526,48 +627,68 @@ export function SessionRoom({ slug }: { slug: string }) {
                         />
                     ) : null}
 
-                    {shareError && <p className="bar-error">{shareError}</p>}
+                    {shareError && (
+                        <p className="absolute left-1/2 top-4 z-30 max-w-[min(90vw,420px)] -translate-x-1/2 rounded-full bg-danger px-4 py-2 text-[13px] text-danger-ink">
+                            {shareError}
+                        </p>
+                    )}
 
-                    <div className="controls">
-                        <button type="button" className="ctrl" aria-pressed={!micOn} onClick={toggleMic}>
-                            {micOn ? "Mute" : "Unmute"}
-                        </button>
+                    {/* Icons, not labels. Six text buttons do not fit a 375px
+                        phone, which is why the previous bar scrolled sideways —
+                        and it is the same reason every call app uses icons. */}
+                    <div className="absolute bottom-4 left-1/2 z-30 flex max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-black/60 p-2 shadow-bar backdrop-blur-md">
                         <button
-                            type="button" className="ctrl" aria-pressed={!camOn}
+                            type="button" className="ctrl-btn" aria-pressed={!micOn}
+                            onClick={toggleMic} title={micOn ? "Mute" : "Unmute"}
+                            aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+                        >
+                            {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+                        </button>
+
+                        <button
+                            type="button" className="ctrl-btn" aria-pressed={!camOn}
                             onClick={toggleCam} disabled={sharing}
-                            title={sharing ? "Stop sharing to use your camera" : undefined}
+                            title={sharing ? "Stop sharing to use your camera" : camOn ? "Turn camera off" : "Turn camera on"}
+                            aria-label={camOn ? "Turn camera off" : "Turn camera on"}
                         >
-                            {camOn ? "Camera off" : "Camera on"}
+                            {camOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
                         </button>
+
                         <button
-                            type="button" className="ctrl" aria-pressed={sharing}
+                            type="button" className="ctrl-btn" aria-pressed={sharing}
                             onClick={() => (sharing ? stopShare() : startShare())}
+                            title={sharing ? "Stop sharing" : "Share your screen"}
+                            aria-label={sharing ? "Stop sharing screen" : "Share screen"}
                         >
-                            {sharing ? "Stop share" : "Share screen"}
+                            {sharing ? <MonitorX className="h-5 w-5" /> : <MonitorUp className="h-5 w-5" />}
                         </button>
-                        {/* Test rooms have no booking, so there is no thread to
-                            write to and the button would open an empty panel. */}
+
                         {preview?.booking_id ? (
                             <button
-                                type="button" className="ctrl" aria-pressed={chatOpen}
+                                type="button" className="ctrl-btn" aria-pressed={chatOpen}
                                 onClick={() => { setChatOpen(o => !o); setHealthOpen(false); }}
+                                title="Chat" aria-label="Chat"
                             >
-                                {chatOpen ? "Hide chat" : "Chat"}
+                                <MessageSquare className="h-5 w-5" />
                             </button>
                         ) : null}
-                        {/* Trainer only, and only on a real booking — the endpoint
-                            resolves the client from the booking, and a test room
-                            has none. */}
+
                         {preview?.you_are === "trainer" && preview?.booking_id ? (
                             <button
-                                type="button" className="ctrl" aria-pressed={healthOpen}
+                                type="button" className="ctrl-btn" aria-pressed={healthOpen}
                                 onClick={() => { setHealthOpen(o => !o); setChatOpen(false); }}
+                                title="Client health record" aria-label="Client health record"
                             >
-                                {healthOpen ? "Hide record" : "Client record"}
+                                <ClipboardList className="h-5 w-5" />
                             </button>
                         ) : null}
-                        <button type="button" className="ctrl danger" onClick={() => leave()}>
-                            End call
+
+                        <button
+                            type="button" className="ctrl-btn ctrl-btn-danger"
+                            onClick={() => leave()} title="End call" aria-label="End call"
+                        >
+                            <PhoneOff className="h-5 w-5" />
+                            <span className="hidden text-[13.5px] font-medium sm:inline">End</span>
                         </button>
                     </div>
                 </section>
