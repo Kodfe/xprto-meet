@@ -10,6 +10,11 @@ import {
     PhoneOff, UserX, Video, VideoOff,
 } from "lucide-react";
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
+
+/** Join class names, skipping false and undefined. */
+function cn(...parts: (string | false | null | undefined)[]) {
+    return parts.filter(Boolean).join(" ");
+}
 import { Chat } from "@/components/Chat";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { HealthPanel } from "@/components/HealthPanel";
@@ -192,6 +197,7 @@ export function SessionRoom({ slug }: { slug: string }) {
     const peerLabel = preview?.you_are === "trainer" ? "Your client" : "Your trainer";
 
     const localBox = useRef<HTMLDivElement | null>(null);
+    const shareBox = useRef<HTMLDivElement | null>(null);
     const remoteBox = useRef<HTMLDivElement | null>(null);
 
     const leave = useCallback(async (reason?: string) => {
@@ -393,8 +399,16 @@ export function SessionRoom({ slug }: { slug: string }) {
 
             if (cam.current) await client.current.unpublish(cam.current);
             await client.current.publish(track);
-            if (localBox.current) track.play(localBox.current);
             setSharing(true);
+
+            // Into the STAGE, not the corner thumbnail. You cannot check that
+            // you are sharing the right window from a 200px box, and picking
+            // the wrong one is the mistake people actually make.
+            //
+            // After the state flip, so the element exists to play into.
+            requestAnimationFrame(() => {
+                if (shareBox.current) track.play(shareBox.current, { fit: "contain" });
+            });
 
             // The browser has its own "Stop sharing" bar, and it does not go
             // through our button. Without this the call keeps publishing a dead
@@ -419,11 +433,17 @@ export function SessionRoom({ slug }: { slug: string }) {
             screen.current = null;
         }
 
+        // State first, THEN play. The self-view is display:none while sharing,
+        // and starting playback into a hidden element leaves a black tile.
+        setSharing(false);
+
         if (cam.current) {
             await client.current.publish(cam.current).catch(() => {});
-            if (localBox.current) cam.current.play(localBox.current);
+            const track = cam.current;
+            requestAnimationFrame(() => {
+                if (localBox.current) track.play(localBox.current);
+            });
         }
-        setSharing(false);
     }
 
     function toggleMic() {
@@ -598,8 +618,34 @@ export function SessionRoom({ slug }: { slug: string }) {
                         rather than a border so it cannot shift the layout when it
                         appears — a stage that nudges every time somebody talks is
                         worse than no indicator at all. */}
-                    <div className="absolute inset-0">
-                        <div ref={remoteBox} className="absolute inset-0 [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
+                    {/* While you are sharing, your screen IS the stage and the
+                        other person moves to a corner tile — the arrangement
+                        Meet and Zoom both use, because the shared thing is what
+                        everyone is looking at. */}
+                    <div
+                        ref={shareBox}
+                        className={cn(
+                            "z-10 overflow-hidden bg-stage [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-contain",
+                            sharing ? "absolute inset-0" : "hidden",
+                        )}
+                    />
+
+                    {sharing && (
+                        <div className="pointer-events-none absolute left-4 top-4 z-20 flex items-center gap-2 rounded-full bg-accent px-3 py-1.5">
+                            <MonitorUp className="h-3.5 w-3.5 text-accent-ink" aria-hidden="true" />
+                            <span className="text-[13px] font-medium text-accent-ink">You are sharing your screen</span>
+                        </div>
+                    )}
+
+                    <div className={cn(sharing ? "absolute bottom-24 right-4 z-20 h-[113px] w-[200px] overflow-hidden rounded-xl2 border border-white/20 max-[700px]:bottom-[88px] max-[700px]:h-32 max-[700px]:w-24" : "absolute inset-0")}>
+                        {/* object-CONTAIN, not cover.
+
+                            A desktop screen shared to a portrait phone was being
+                            cropped to its middle strip — the reported bug. Cover
+                            fills the box by cutting content off, which is fine
+                            for a face and destroys a shared document. Letterboxed
+                            is the only version that always shows what was sent. */}
+                        <div ref={remoteBox} className="absolute inset-0 [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-contain" />
 
                         {!peerVideo && (
                             <div className="absolute inset-0 grid place-items-center">
@@ -638,7 +684,13 @@ export function SessionRoom({ slug }: { slug: string }) {
                         video content, so the tile that is you is never in doubt.
                         The label says "You" as well; the border is what works
                         before anyone reads. */}
-                    <div className="absolute bottom-24 right-4 z-20 h-[113px] w-[200px] overflow-hidden rounded-xl2 border-2 border-white bg-stage shadow-tile max-[700px]:bottom-[88px] max-[700px]:h-32 max-[700px]:w-24">
+                    <div className={cn(
+                        "absolute bottom-24 right-4 z-20 h-[113px] w-[200px] overflow-hidden rounded-xl2 border-2 border-white bg-stage shadow-tile max-[700px]:bottom-[88px] max-[700px]:h-32 max-[700px]:w-24",
+                        // Hidden while sharing: the camera is unpublished then,
+                        // so it would sit next to the peer's tile as an empty
+                        // white-bordered box.
+                        sharing && "hidden",
+                    )}>
                         <div ref={localBox} className="absolute inset-0 [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
 
                         {!camOn && !sharing && (
