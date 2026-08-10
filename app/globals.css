@@ -105,9 +105,12 @@
   }
 
   .ctrl-btn-danger {
-    /* Wider, because hanging up is the one control you should never hit by
-       accident and never hunt for. */
-    @apply w-auto gap-2 rounded-full bg-danger px-5 text-danger-ink hover:bg-danger/90;
+    /* flex, not the base grid. `grid place-items-center` puts two children in
+       two ROWS, so the icon and the word "End" stacked and the label fell out
+       of the pill. Wider than the round buttons, because hanging up is the one
+       control you should never hit by accident and never hunt for. */
+    @apply flex w-auto items-center gap-2 rounded-full bg-danger px-5
+           text-danger-ink hover:bg-danger/90;
   }
 
   .field {

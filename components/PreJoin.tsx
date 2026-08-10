@@ -108,6 +108,64 @@ export function PreJoin({
         };
     }, [start]);
 
+    /**
+     * A Bluetooth headset connected after the page opened.
+     *
+     * Reported from a real call: it worked for one person and not the other.
+     * The difference is timing, not the headset. Tracks bind to whichever
+     * microphone was default when they were created, so pairing earbuds
+     * afterwards changes the system default and changes nothing about the call
+     * — the browser keeps using the built-in mic, and the person hears
+     * themselves fine while sounding wrong to everybody else.
+     *
+     * Agora reports the plug event. On ACTIVE — a device appearing — switch to
+     * it, because someone who just put earbuds in means to use them. On
+     * INACTIVE — the device going away — fall back to whatever is left, or the
+     * call goes silent when a headset's battery dies mid-session.
+     */
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
+            if (cancelled) return;
+
+            AgoraRTC.onMicrophoneChanged = async changed => {
+                const list = await AgoraRTC.getMicrophones();
+                setMics(list.map(d => ({ label: d.label || "Microphone", deviceId: d.deviceId })));
+
+                const target = changed.state === "ACTIVE"
+                    ? changed.device
+                    : list[0];
+                if (!target) return;
+
+                try {
+                    await mic.current?.setDevice(target.deviceId);
+                    setMicId(target.deviceId);
+                } catch {
+                    setDeviceError("A microphone was connected but could not be selected.");
+                }
+            };
+
+            AgoraRTC.onCameraChanged = async changed => {
+                const list = await AgoraRTC.getCameras();
+                setCameras(list.map(d => ({ label: d.label || "Camera", deviceId: d.deviceId })));
+
+                // Only on removal. A camera appearing should not yank the view
+                // away from the one someone deliberately chose — a microphone
+                // is different, because you cannot see which one is live.
+                if (changed.state === "INACTIVE" && list[0]) {
+                    try {
+                        await cam.current?.setDevice(list[0].deviceId);
+                        setCameraId(list[0].deviceId);
+                    } catch { /* the preview shows the failure */ }
+                }
+            };
+        })();
+
+        return () => { cancelled = true; };
+    }, []);
+
     async function switchCamera(deviceId: string) {
         setCameraId(deviceId);
         try { await cam.current?.setDevice(deviceId); } catch { setDeviceError("Could not switch camera."); }

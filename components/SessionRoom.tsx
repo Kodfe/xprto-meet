@@ -706,21 +706,32 @@ export function SessionRoom({ slug }: { slug: string }) {
                             {sharing ? <MonitorX className="h-5 w-5" /> : <MonitorUp className="h-5 w-5" />}
                         </button>
 
-                        {preview?.booking_id ? (
-                            <button
-                                type="button" className="ctrl-btn" aria-pressed={chatOpen}
-                                onClick={() => { setChatOpen(o => !o); setHealthOpen(false); }}
-                                title="Chat" aria-label="Chat"
-                            >
-                                <MessageSquare className="h-5 w-5" />
-                            </button>
-                        ) : null}
+                        {/* Shown even where it cannot work, disabled and with the
+                            reason on the tooltip.
 
-                        {preview?.you_are === "trainer" && preview?.booking_id ? (
+                            It used to be hidden entirely on a test room, which is
+                            the only kind of room anyone has been able to make so
+                            far — so chat looked simply absent from the product,
+                            and the first report was "chat screen missing". A
+                            control that explains why it is unavailable is worth
+                            more than one that vanishes. */}
+                        <button
+                            type="button" className="ctrl-btn" aria-pressed={chatOpen}
+                            onClick={() => { setChatOpen(o => !o); setHealthOpen(false); }}
+                            disabled={!preview?.booking_id}
+                            title={preview?.booking_id ? "Chat" : "Chat needs a real booking — a test session has no message thread"}
+                            aria-label="Chat"
+                        >
+                            <MessageSquare className="h-5 w-5" />
+                        </button>
+
+                        {preview?.you_are === "trainer" ? (
                             <button
                                 type="button" className="ctrl-btn" aria-pressed={healthOpen}
                                 onClick={() => { setHealthOpen(o => !o); setChatOpen(false); }}
-                                title="Client health record" aria-label="Client health record"
+                                disabled={!preview?.booking_id}
+                                title={preview?.booking_id ? "Client health record" : "Needs a real booking — a test session has no client"}
+                                aria-label="Client health record"
                             >
                                 <ClipboardList className="h-5 w-5" />
                             </button>
