@@ -7,7 +7,7 @@ import type {
 } from "agora-rtc-sdk-ng";
 import {
     ClipboardList, Loader2, MessageSquare, Mic, MicOff, MonitorUp, MonitorX,
-    PhoneOff, UserX, Video, VideoOff,
+    PhoneOff, Settings, UserX, Video, VideoOff,
 } from "lucide-react";
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
 
@@ -19,6 +19,7 @@ import { Chat } from "@/components/Chat";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { HealthPanel } from "@/components/HealthPanel";
 import { PreJoin, type ReadyTracks } from "@/components/PreJoin";
+import { DeviceSettings } from "@/components/DeviceSettings";
 
 /**
  * The session.
@@ -169,6 +170,7 @@ export function SessionRoom({ slug }: { slug: string }) {
     const [sharing, setSharing] = useState(false);
     const [chatOpen, setChatOpen] = useState(false);
     const [healthOpen, setHealthOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
     const [peerVideo, setPeerVideo] = useState(false);
     const [peerAudio, setPeerAudio] = useState(false);
@@ -463,6 +465,39 @@ export function SessionRoom({ slug }: { slug: string }) {
         setCamOn(next);
     }
 
+    /**
+     * A headset paired DURING the call.
+     *
+     * PreJoin handles devices connected before joining; this is the same
+     * listener for after, which is the case people actually hit. Without it a
+     * track stays bound to whatever was default when it was created, so
+     * earbuds put in mid-session do nothing and the person sounds wrong to
+     * everyone but themselves.
+     *
+     * Only while joined — outside a call there is no track to move.
+     */
+    useEffect(() => {
+        if (view !== "room") return;
+        let cancelled = false;
+
+        (async () => {
+            const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
+            if (cancelled) return;
+
+            AgoraRTC.onMicrophoneChanged = async changed => {
+                // Appearing: switch to it, because putting earbuds in means
+                // using them. Disappearing: fall back, or a headset running out
+                // of battery takes the call with it.
+                const list = await AgoraRTC.getMicrophones();
+                const target = changed.state === "ACTIVE" ? changed.device : list[0];
+                if (!target || !mic.current) return;
+                try { await mic.current.setDevice(target.deviceId); } catch { /* the panel can correct it */ }
+            };
+        })();
+
+        return () => { cancelled = true; };
+    }, [view]);
+
     // Release the camera if the tab goes away. Without this the indicator light
     // stays on, which people reasonably read as being recorded.
     useEffect(() => {
@@ -485,7 +520,21 @@ export function SessionRoom({ slug }: { slug: string }) {
 
             {view === "loading" && (
                 <section className="view">
-                    <div className="card"><p className="muted">Checking this session…</p></div>
+                    {/* This is the first thing anyone sees, and it used to be one
+                        grey line in an empty card — which reads as a page that
+                        has failed rather than one that is working. A spinner and
+                        a sentence about what is happening is the difference
+                        between waiting and wondering. */}
+                    <div className="card text-center">
+                        <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-accent/10 text-accent">
+                            <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+                        </div>
+                        <h1 className="mt-4">Checking this session</h1>
+                        <p className="muted !mb-0">
+                            One moment — we are confirming the session is open and
+                            that you are on the booking.
+                        </p>
+                    </div>
                 </section>
             )}
 
@@ -709,6 +758,14 @@ export function SessionRoom({ slug }: { slug: string }) {
                         </div>
                     </div>
 
+                    {settingsOpen ? (
+                        <DeviceSettings
+                            mic={mic.current}
+                            cam={cam.current}
+                            onClose={() => setSettingsOpen(false)}
+                        />
+                    ) : null}
+
                     {healthOpen && preview?.booking_id ? (
                         <HealthPanel slug={slug} token={token.current} onClose={() => setHealthOpen(false)} />
                     ) : null}
@@ -769,7 +826,7 @@ export function SessionRoom({ slug }: { slug: string }) {
                             more than one that vanishes. */}
                         <button
                             type="button" className="ctrl-btn" aria-pressed={chatOpen}
-                            onClick={() => { setChatOpen(o => !o); setHealthOpen(false); }}
+                            onClick={() => { setChatOpen(o => !o); setHealthOpen(false); setSettingsOpen(false); }}
                             disabled={!preview?.booking_id}
                             title={preview?.booking_id ? "Chat" : "Chat needs a real booking — a test session has no message thread"}
                             aria-label="Chat"
@@ -780,7 +837,7 @@ export function SessionRoom({ slug }: { slug: string }) {
                         {preview?.you_are === "trainer" ? (
                             <button
                                 type="button" className="ctrl-btn" aria-pressed={healthOpen}
-                                onClick={() => { setHealthOpen(o => !o); setChatOpen(false); }}
+                                onClick={() => { setHealthOpen(o => !o); setChatOpen(false); setSettingsOpen(false); }}
                                 disabled={!preview?.booking_id}
                                 title={preview?.booking_id ? "Client health record" : "Needs a real booking — a test session has no client"}
                                 aria-label="Client health record"
@@ -788,6 +845,14 @@ export function SessionRoom({ slug }: { slug: string }) {
                                 <ClipboardList className="h-5 w-5" />
                             </button>
                         ) : null}
+
+                        <button
+                            type="button" className="ctrl-btn" aria-pressed={settingsOpen}
+                            onClick={() => { setSettingsOpen(o => !o); setChatOpen(false); setHealthOpen(false); }}
+                            title="Camera and microphone" aria-label="Camera and microphone"
+                        >
+                            <Settings className="h-5 w-5" />
+                        </button>
 
                         <button
                             type="button" className="ctrl-btn ctrl-btn-danger"
