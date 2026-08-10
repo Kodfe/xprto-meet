@@ -13,6 +13,7 @@ import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
 import { Chat } from "@/components/Chat";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
 import { HealthPanel } from "@/components/HealthPanel";
+import { PreJoin, type ReadyTracks } from "@/components/PreJoin";
 
 /**
  * The session.
@@ -35,7 +36,12 @@ import { HealthPanel } from "@/components/HealthPanel";
  * dead link.
  */
 
-type View = "loading" | "signin" | "warning" | "room" | "message";
+/**
+ * "ready" sits between agreeing to the warning and being in the call: see
+ * PreJoin. It is the difference between finding out your microphone is dead
+ * now and finding out while an expert waits and the clock runs.
+ */
+type View = "loading" | "signin" | "warning" | "ready" | "room" | "message";
 
 export function SessionRoom({ slug }: { slug: string }) {
     const [view, setView] = useState<View>("loading");
@@ -241,7 +247,18 @@ export function SessionRoom({ slug }: { slug: string }) {
         }, wait);
     }, [slug, leave]);
 
-    async function join() {
+    /**
+     * Agreeing to the warning opens the pre-join screen. No token is requested
+     * here — asking for one now would start its fifteen-minute life while
+     * somebody is still choosing a camera.
+     */
+    function join() {
+        setJoinError(null);
+        setView("ready");
+    }
+
+    /** From the pre-join screen: publish the devices already previewing. */
+    async function enterCall(ready: ReadyTracks) {
         setJoining(true);
         setJoinError(null);
 
@@ -320,11 +337,20 @@ export function SessionRoom({ slug }: { slug: string }) {
             joined.current = true;
             scheduleRenewal(credentials.expires_in);
 
-            const [micTrack, camTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-            mic.current = micTrack;
-            cam.current = camTrack;
-            if (localBox.current) camTrack.play(localBox.current);
-            await rtc.publish([micTrack, camTrack]);
+            // The tracks from the preview, not fresh ones. Creating new tracks
+            // here would discard the device the user just picked and ask for
+            // permission a second time on some browsers.
+            mic.current = ready.mic;
+            cam.current = ready.cam;
+            setMicOn(ready.micOn);
+            setCamOn(ready.camOn);
+
+            if (ready.cam && localBox.current) ready.cam.play(localBox.current);
+
+            const publishing = [ready.mic, ready.cam].filter(Boolean) as NonNullable<
+                typeof ready.mic | typeof ready.cam
+            >[];
+            if (publishing.length) await rtc.publish(publishing);
             setStatus("Connected");
         } catch (err) {
             const denied =
@@ -554,6 +580,17 @@ export function SessionRoom({ slug }: { slug: string }) {
                 </section>
                 );
             })()}
+
+            {view === "ready" && (
+                <section className="flex flex-1 items-center">
+                    <PreJoin
+                        peerLabel={peerLabel}
+                        joining={joining}
+                        error={joinError}
+                        onJoin={enterCall}
+                    />
+                </section>
+            )}
 
             {view === "room" && (
                 <section className="relative flex-1 overflow-hidden bg-stage">
