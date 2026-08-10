@@ -46,6 +46,11 @@ export type ApiResult<T> = {
     data: { success?: boolean; message?: string; result?: T };
 };
 
+/** Where this page is actually being served from — see the failure message. */
+function origin() {
+    return typeof window === "undefined" ? "this page" : window.location.origin;
+}
+
 export async function api<T = unknown>(
     path: string,
     options: { method?: string; body?: unknown; token?: string | null } = {},
@@ -86,7 +91,13 @@ export async function api<T = unknown>(
             data: {
                 message: offline
                     ? "You appear to be offline. Check your connection and try again."
-                    : `Could not reach XPRTO at ${API_BASE}. If this keeps happening, this page's address may not be allowed by the API yet.`,
+                    // The page's OWN origin, named. Two rounds were spent
+                    // guessing which hostname the browser was sending — a
+                    // deployed page can answer on a project URL, a branch URL,
+                    // a commit URL or the real domain, and only one of those is
+                    // usually in an allowlist. The message that says "this page
+                    // is X and X was refused" ends that in one screenshot.
+                    : `Could not reach ${API_BASE} from ${origin()}. If this keeps happening, ${origin()} is probably not in the API's allowed origins.`,
             },
         };
     }
