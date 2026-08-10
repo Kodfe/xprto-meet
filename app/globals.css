@@ -209,3 +209,17 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .notice li::marker {
   color: var(--danger);
 }
+
+/* Four controls, and on a narrow phone they wrap rather than shrink to
+   unreadable. A 44px minimum is the smallest thing a thumb hits reliably. */
+.controls { flex-wrap: wrap; }
+.ctrl { min-width: 84px; min-height: 44px; }
+
+.bar-error {
+  margin: 0;
+  padding: 8px 14px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}

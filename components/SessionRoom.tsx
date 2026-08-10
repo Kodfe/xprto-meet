@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
-    IAgoraRTCClient, IAgoraRTCRemoteUser, ICameraVideoTrack, IMicrophoneAudioTrack,
+    IAgoraRTCClient, IAgoraRTCRemoteUser, ICameraVideoTrack, ILocalVideoTrack,
+    IMicrophoneAudioTrack,
 } from "agora-rtc-sdk-ng";
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
 
@@ -142,8 +143,12 @@ export function SessionRoom({ slug }: { slug: string }) {
     const renewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const joined = useRef(false);
 
+    const screen = useRef<ILocalVideoTrack | null>(null);
+
     const [micOn, setMicOn] = useState(true);
     const [camOn, setCamOn] = useState(true);
+    const [sharing, setSharing] = useState(false);
+    const [shareError, setShareError] = useState<string | null>(null);
     const [peerVideo, setPeerVideo] = useState(false);
     const [peerNote, setPeerNote] = useState("Waiting for the other person to join…");
 
@@ -153,7 +158,7 @@ export function SessionRoom({ slug }: { slug: string }) {
     const leave = useCallback(async (reason?: string) => {
         if (renewTimer.current) clearTimeout(renewTimer.current);
 
-        for (const ref of [mic, cam]) {
+        for (const ref of [mic, cam, screen]) {
             ref.current?.stop();
             ref.current?.close();
             ref.current = null;
@@ -279,6 +284,61 @@ export function SessionRoom({ slug }: { slug: string }) {
         }
     }
 
+
+    /**
+     * Screen share.
+     *
+     * The camera is UNPUBLISHED while sharing rather than published alongside.
+     * Agora allows one video track per user, so publishing a second silently
+     * replaces the first on the other side — and on a 1 Mbit Indian mobile
+     * uplink, sending two video streams would degrade both. The self-view
+     * switches to the shared screen so you can see what they can see, which is
+     * the mistake people actually make: sharing the wrong window.
+     */
+    async function startShare() {
+        if (!client.current) return;
+        setShareError(null);
+
+        try {
+            const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
+            const track = await AgoraRTC.createScreenVideoTrack({}, "disable");
+            screen.current = track;
+
+            if (cam.current) await client.current.unpublish(cam.current);
+            await client.current.publish(track);
+            if (localBox.current) track.play(localBox.current);
+            setSharing(true);
+
+            // The browser has its own "Stop sharing" bar, and it does not go
+            // through our button. Without this the call keeps publishing a dead
+            // track and the other person sees a frozen frame.
+            track.on("track-ended", () => { stopShare(); });
+        } catch (err) {
+            const denied = (err as { name?: string })?.name === "NotAllowedError";
+            // Cancelling the picker is not an error worth shouting about.
+            if (!denied) setShareError("Could not share your screen.");
+            screen.current?.close();
+            screen.current = null;
+        }
+    }
+
+    async function stopShare() {
+        if (!client.current) return;
+
+        if (screen.current) {
+            await client.current.unpublish(screen.current).catch(() => {});
+            screen.current.stop();
+            screen.current.close();
+            screen.current = null;
+        }
+
+        if (cam.current) {
+            await client.current.publish(cam.current).catch(() => {});
+            if (localBox.current) cam.current.play(localBox.current);
+        }
+        setSharing(false);
+    }
+
     function toggleMic() {
         if (!mic.current) return;
         const next = !micOn;
@@ -287,7 +347,10 @@ export function SessionRoom({ slug }: { slug: string }) {
     }
 
     function toggleCam() {
-        if (!cam.current) return;
+        // While sharing, the camera is not published — enabling it here would
+        // put a device the other side cannot see into a state the button
+        // claims is on. The control is disabled in the UI for the same reason.
+        if (!cam.current || sharing) return;
         const next = !camOn;
         cam.current.setEnabled(next);
         setCamOn(next);
@@ -401,12 +464,24 @@ export function SessionRoom({ slug }: { slug: string }) {
                         <div ref={localBox} className="tile local" />
                     </div>
 
+                    {shareError && <p className="bar-error">{shareError}</p>}
+
                     <div className="controls">
                         <button type="button" className="ctrl" aria-pressed={!micOn} onClick={toggleMic}>
                             {micOn ? "Mute" : "Unmute"}
                         </button>
-                        <button type="button" className="ctrl" aria-pressed={!camOn} onClick={toggleCam}>
+                        <button
+                            type="button" className="ctrl" aria-pressed={!camOn}
+                            onClick={toggleCam} disabled={sharing}
+                            title={sharing ? "Stop sharing to use your camera" : undefined}
+                        >
                             {camOn ? "Camera off" : "Camera on"}
+                        </button>
+                        <button
+                            type="button" className="ctrl" aria-pressed={sharing}
+                            onClick={() => (sharing ? stopShare() : startShare())}
+                        >
+                            {sharing ? "Stop share" : "Share screen"}
                         </button>
                         <button type="button" className="ctrl danger" onClick={() => leave()}>
                             End call
