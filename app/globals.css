@@ -375,3 +375,150 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .health-form input { margin-top: 4px; padding: 9px 10px; }
 .health-actions { display: flex; gap: 8px; margin-top: 12px; }
 .health-actions button { margin: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE CALL, REBUILT
+
+   The first version laid the room out with flex-direction and let the
+   children size themselves. On a laptop that gave four buttons half the
+   viewport, an error banner rendered as a tall red column, and a self-view
+   floating in the middle of nothing.
+
+   The mistake was treating a video call as a document that flows. It is not:
+   the video fills the space, and everything else sits ON it at a known
+   position. So the stage is the layer, and the controls, the toast and the
+   side panel are positioned over it. Nothing in here participates in flow.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.room {
+  position: relative;
+  display: block;
+  flex: 1;
+  min-height: 0;
+  background: var(--stage);
+  overflow: hidden;
+}
+
+.room .stage {
+  position: absolute;
+  inset: 0;
+}
+
+/* The other person, edge to edge. object-fit lives on the video element the
+   SDK injects, so it is set by descendant rather than on the box. */
+.room .remote { position: absolute; inset: 0; }
+.room .remote video { width: 100% !important; height: 100% !important; object-fit: cover; }
+
+/* Self-view: a card in the corner, above the control bar and out of the way.
+   16:9 on a laptop, portrait on a phone, because that is the shape each
+   camera actually produces. */
+.room .local {
+  position: absolute;
+  right: 16px;
+  bottom: 96px;
+  width: 200px;
+  height: 113px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  z-index: 2;
+}
+.room .local video { width: 100% !important; height: 100% !important; object-fit: cover; }
+
+@media (max-width: 700px) {
+  .room .local { right: 12px; bottom: 88px; width: 96px; height: 128px; }
+}
+
+/* A floating bar, centred, the way every call app does it — not a row of
+   stretched blocks. Buttons size to content and stop growing. */
+.room .controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 3;
+
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(20, 24, 30, 0.82);
+  backdrop-filter: blur(12px);
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.room .controls::-webkit-scrollbar { display: none; }
+
+.room .ctrl {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eef1f5;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.room .ctrl:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+.room .ctrl[aria-pressed="true"] { background: #eef1f5; color: #14171c; }
+.room .ctrl.danger { background: #d92d20; color: #fff; }
+.room .ctrl.danger:hover { background: #b42318; }
+
+@media (max-width: 700px) {
+  .room .ctrl { height: 40px; padding: 0 13px; font-size: 12.5px; }
+}
+
+/* A toast at the top, not a column down the side. */
+.room .bar-error {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: auto;
+  max-width: min(90vw, 420px);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(180, 35, 24, 0.95);
+  color: #fff;
+  font-size: 13px;
+}
+
+/* The side panel overlays the video rather than squeezing it — a call that
+   reflows every time chat opens is disorienting, and on a phone there is no
+   width to give up in the first place. */
+.room .chat {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: min(360px, 100%);
+  max-height: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 700px) {
+  .room .chat {
+    top: auto;
+    width: 100%;
+    height: 62%;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+  }
+  /* Out of the panel's way when it is open. */
+  .room .chat ~ .controls { bottom: calc(62% + 12px); }
+}
+
+.room .waiting { position: relative; z-index: 1; }
