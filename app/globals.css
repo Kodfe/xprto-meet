@@ -296,3 +296,26 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .chat-form { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .chat-form input { flex: 1; }
 .chat-form button { width: auto; margin: 0; padding: 10px 16px; }
+
+/* ─── Made links ────────────────────────────────────────────────────────── */
+
+.links { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+.link + .link { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+.link-label { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+
+/* anywhere, not break-all: a slug that wraps mid-character is harder to read
+   back to someone over the phone, which is how these will get shared. */
+.link-url {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.link button { margin-top: 10px; }
+
+.link-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); }
