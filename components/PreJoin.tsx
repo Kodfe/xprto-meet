@@ -61,6 +61,9 @@ export function PreJoin({
     const [cameraId, setCameraId] = useState("");
     const [micId, setMicId] = useState("");
 
+    /** Set when the tracks are handed to the call, so cleanup leaves them alone. */
+    const handedOver = useRef(false);
+
     const [micOn, setMicOn] = useState(true);
     const [camOn, setCamOn] = useState(true);
     const [level, setLevel] = useState(0);
@@ -103,8 +106,18 @@ export function PreJoin({
         start();
         return () => {
             if (meterTimer.current) clearInterval(meterTimer.current);
-            // Not closed here: the tracks are handed to the call. Closing them
-            // on unmount would kill the very devices that were just chosen.
+
+            // Closed unless the call took them.
+            //
+            // They used to be left open unconditionally, on the reasoning that
+            // the call owns them — true only if the person actually joins.
+            // Walking away from this screen left the camera light on until the
+            // tab was closed, which reasonably reads as being recorded.
+            if (handedOver.current) return;
+            mic.current?.close();
+            cam.current?.close();
+            mic.current = null;
+            cam.current = null;
         };
     }, [start]);
 
@@ -280,7 +293,10 @@ export function PreJoin({
                 type="button"
                 className="btn-primary mt-5"
                 disabled={!ready || joining}
-                onClick={() => onJoin({ mic: mic.current, cam: cam.current, micOn, camOn })}
+                onClick={() => {
+                    handedOver.current = true;
+                    onJoin({ mic: mic.current, cam: cam.current, micOn, camOn });
+                }}
             >
                 {joining ? "Joining…" : "Join now"}
             </button>

@@ -67,6 +67,7 @@ export function CreateLink() {
         const form = new FormData(event.currentTarget);
         const label = String(form.get("label") || "").trim() || "Test session";
         const hours = Number(form.get("hours") || 4);
+        const bookingId = String(form.get("booking_id") || "").trim();
 
         setBusy(true);
         setError(null);
@@ -74,7 +75,7 @@ export function CreateLink() {
         const res = await api<{ slug: string; url: string }>("/v1/account/live/test-room", {
             method: "POST",
             token: token.current,
-            body: { label, hours },
+            body: { label, hours, booking_id: bookingId || null },
         });
 
         setBusy(false);
@@ -153,6 +154,16 @@ export function CreateLink() {
                                     <option value="12">12 hours</option>
                                     <option value="24">24 hours</option>
                                 </select>
+
+                                <label htmlFor="booking_id">Booking number (optional)</label>
+                                <input id="booking_id" name="booking_id" type="text" inputMode="numeric" placeholder="e.g. 42" />
+                                <p className="muted !mb-0 !mt-1.5 text-[12.5px]">
+                                    Leave blank for a plain test call. Enter a real
+                                    online booking and chat and the client health
+                                    record work exactly as they will for members —
+                                    they need a booking to know whose thread and
+                                    whose record to open.
+                                </p>
 
                                 {error && <p className="error">{error}</p>}
                                 <button type="submit" disabled={busy}>{busy ? "Making…" : "Make link"}</button>
