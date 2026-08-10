@@ -18,6 +18,8 @@ export type Warning = {
 };
 
 export type Preview = {
+    /** Absent on test rooms, which have no booking and therefore no chat thread. */
+    booking_id?: number | null;
     booking_code: string | null;
     service: string | null;
     you_are: "client" | "trainer" | "admin" | "guest";

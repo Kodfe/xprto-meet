@@ -6,6 +6,7 @@ import type {
     IMicrophoneAudioTrack,
 } from "agora-rtc-sdk-ng";
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
+import { Chat } from "@/components/Chat";
 
 /**
  * The session.
@@ -148,6 +149,7 @@ export function SessionRoom({ slug }: { slug: string }) {
     const [micOn, setMicOn] = useState(true);
     const [camOn, setCamOn] = useState(true);
     const [sharing, setSharing] = useState(false);
+    const [chatOpen, setChatOpen] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
     const [peerVideo, setPeerVideo] = useState(false);
     const [peerNote, setPeerNote] = useState("Waiting for the other person to join…");
@@ -464,6 +466,15 @@ export function SessionRoom({ slug }: { slug: string }) {
                         <div ref={localBox} className="tile local" />
                     </div>
 
+                    {chatOpen && preview?.booking_id ? (
+                        <Chat
+                            bookingId={preview.booking_id}
+                            token={token.current}
+                            myRole={preview.you_are}
+                            onClose={() => setChatOpen(false)}
+                        />
+                    ) : null}
+
                     {shareError && <p className="bar-error">{shareError}</p>}
 
                     <div className="controls">
@@ -483,6 +494,16 @@ export function SessionRoom({ slug }: { slug: string }) {
                         >
                             {sharing ? "Stop share" : "Share screen"}
                         </button>
+                        {/* Test rooms have no booking, so there is no thread to
+                            write to and the button would open an empty panel. */}
+                        {preview?.booking_id ? (
+                            <button
+                                type="button" className="ctrl" aria-pressed={chatOpen}
+                                onClick={() => setChatOpen(o => !o)}
+                            >
+                                {chatOpen ? "Hide chat" : "Chat"}
+                            </button>
+                        ) : null}
                         <button type="button" className="ctrl danger" onClick={() => leave()}>
                             End call
                         </button>
