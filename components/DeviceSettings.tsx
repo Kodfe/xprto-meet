@@ -59,7 +59,10 @@ export function DeviceSettings({
 
     useEffect(() => {
         refresh();
-        meter.current = setInterval(() => setLevel(mic?.getVolumeLevel?.() ?? 0), 100);
+        meter.current = setInterval(() => setLevel(prev => {
+            const next = Math.round((mic?.getVolumeLevel?.() ?? 0) * 20) / 20;
+            return next === prev ? prev : next;
+        }), 100);
         return () => { if (meter.current) clearInterval(meter.current); };
     }, [refresh, mic]);
 

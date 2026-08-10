@@ -338,7 +338,16 @@ export function SessionRoom({ slug }: { slug: string }) {
                     }
                 }
                 speakingUntil.current = next;
-                setSpeaking({ local: next.local > now, peer: next.peer > now });
+
+                // Only when it CHANGES. This fired on every volume report with
+                // a fresh object, so React re-rendered the entire call view
+                // several times a second whether or not anybody was talking —
+                // and each render walks the tiles, the panels and the bar.
+                const local = next.local > now;
+                const peer = next.peer > now;
+                setSpeaking(prev =>
+                    prev.local === local && prev.peer === peer ? prev : { local, peer },
+                );
             });
 
             await rtc.join(credentials.app_id, credentials.channel, credentials.token, credentials.uid);
@@ -718,7 +727,7 @@ export function SessionRoom({ slug }: { slug: string }) {
                         )}
 
                         {peerHere && (
-                            <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 backdrop-blur-sm">
+                            <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5">
                                 <span className="text-[13px] font-medium text-white">{peerLabel}</span>
                                 {!peerAudio && <MicOff className="h-3.5 w-3.5 text-danger" aria-label="Muted" />}
                             </div>
@@ -788,7 +797,7 @@ export function SessionRoom({ slug }: { slug: string }) {
                     {/* Icons, not labels. Six text buttons do not fit a 375px
                         phone, which is why the previous bar scrolled sideways —
                         and it is the same reason every call app uses icons. */}
-                    <div className="absolute bottom-4 left-1/2 z-30 flex max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-black/60 p-2 shadow-bar backdrop-blur-md">
+                    <div className="absolute bottom-4 left-1/2 z-30 flex max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-black/80 p-2 shadow-bar">
                         <button
                             type="button" className="ctrl-btn" aria-pressed={!micOn}
                             onClick={toggleMic} title={micOn ? "Mute" : "Unmute"}

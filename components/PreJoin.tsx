@@ -91,7 +91,10 @@ export function PreJoin({
 
             // 100ms is smooth enough to look live without being a busy loop.
             meterTimer.current = setInterval(() => {
-                setLevel(mic.current?.getVolumeLevel?.() ?? 0);
+                setLevel(prev => {
+                    const next = Math.round((mic.current?.getVolumeLevel?.() ?? 0) * 20) / 20;
+                    return next === prev ? prev : next;
+                });
             }, 100);
 
             setReady(true);
