@@ -49,6 +49,7 @@ export function GoogleSignIn({
     onError: (message: string) => void;
 }) {
     const holder = useRef<HTMLDivElement | null>(null);
+    const cleanup = useRef<(() => void) | null>(null);
     const [ready, setReady] = useState(false);
 
     // The role can change (the dropdown above this) after Google has been
@@ -82,10 +83,21 @@ export function GoogleSignIn({
                 },
             });
 
+            /**
+             * Width measured, not guessed.
+             *
+             * It was hardcoded to 320 inside a column about 364 wide, so the
+             * button stopped short of the fields below it and read as
+             * misaligned. Google renders into a fixed-width iframe and will not
+             * accept a percentage, so the only way to match the form is to
+             * measure the container — and 400 is the maximum it allows.
+             */
+            const width = Math.min(400, Math.floor(holder.current.getBoundingClientRect().width) || 320);
+
             window.google.accounts.id.renderButton(holder.current, {
                 theme: "outline",
                 size: "large",
-                width: 320,
+                width,
                 text: "signin_with",
             });
             setReady(true);
@@ -93,8 +105,17 @@ export function GoogleSignIn({
 
         if (window.google) {
             draw();
-            return;
         }
+
+        // Redraw on resize: the iframe keeps whatever width it was given, so a
+        // rotate or a window drag would otherwise leave it mismatched again.
+        const observer = new ResizeObserver(() => { if (window.google) draw(); });
+        if (holder.current) observer.observe(holder.current);
+        cleanup.current = () => observer.disconnect();
+
+        // Both paths return the same cleanup — an early `return` here would skip
+        // it and leave the observer attached for the life of the page.
+        if (window.google) return () => { cleanup.current?.(); };
 
         // Loaded here rather than in the document head so the script is only
         // fetched on a page that offers the button, and never on the session
@@ -105,13 +126,15 @@ export function GoogleSignIn({
         script.onload = draw;
         script.onerror = () => onError("Could not load Google sign-in.");
         document.head.appendChild(script);
+
+        return () => { cleanup.current?.(); };
     }, [onSignedIn, onError]);
 
     if (!CLIENT_ID) return null;
 
     return (
         <div className="google">
-            <div ref={holder} />
+            <div ref={holder} className="w-full" />
             {!ready && <p className="muted small">Loading Google sign-in…</p>}
             <p className="or">or</p>
         </div>
