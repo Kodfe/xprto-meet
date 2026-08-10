@@ -593,9 +593,15 @@ export function SessionRoom({ slug }: { slug: string }) {
                         )}
                     </div>
 
-                    {/* Self-view. Bordered, rounded, and labelled — without a label
-                        people mistake it for the other person on a phone. */}
-                    <div className="absolute bottom-24 right-4 z-20 h-[113px] w-[200px] overflow-hidden rounded-xl2 border border-white/15 bg-stage shadow-tile max-[700px]:bottom-[88px] max-[700px]:h-32 max-[700px]:w-24">
+                    {/* Self-view.
+                        A solid WHITE border, not a faint one. At a glance on a
+                        phone the two feeds are just two faces, and a 15%-white
+                        hairline disappears against a bright camera image — which
+                        is exactly when it is needed. White reads against any
+                        video content, so the tile that is you is never in doubt.
+                        The label says "You" as well; the border is what works
+                        before anyone reads. */}
+                    <div className="absolute bottom-24 right-4 z-20 h-[113px] w-[200px] overflow-hidden rounded-xl2 border-2 border-white bg-stage shadow-tile max-[700px]:bottom-[88px] max-[700px]:h-32 max-[700px]:w-24">
                         <div ref={localBox} className="absolute inset-0 [&>div]:!h-full [&>div]:!w-full [&_video]:!h-full [&_video]:!w-full [&_video]:object-cover" />
 
                         {!camOn && !sharing && (
