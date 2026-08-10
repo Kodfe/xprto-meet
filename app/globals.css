@@ -189,3 +189,23 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .ctrl[aria-pressed="true"] { background: rgba(255, 255, 255, 0.26); }
 .ctrl.danger { background: var(--danger); color: #fff; }
+
+/* The hard warning. Bullet points, because a paragraph gets skimmed and a list
+   gets read — and each line here is a separate thing someone needs to know. */
+.notice .lead {
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.notice ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.notice li {
+  margin-top: 7px;
+}
+
+.notice li::marker {
+  color: var(--danger);
+}
