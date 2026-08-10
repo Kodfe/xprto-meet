@@ -7,6 +7,7 @@ import type {
 } from "agora-rtc-sdk-ng";
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
 import { Chat } from "@/components/Chat";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
 
 /**
  * The session.
@@ -49,6 +50,7 @@ export function SessionRoom({ slug }: { slug: string }) {
     const isTest = useRef(false);
 
     const [signinError, setSigninError] = useState<string | null>(null);
+    const [signinRole, setSigninRole] = useState("client");
     const [signingIn, setSigningIn] = useState(false);
     const [agreed, setAgreed] = useState(false);
     const [joinError, setJoinError] = useState<string | null>(null);
@@ -389,6 +391,16 @@ export function SessionRoom({ slug }: { slug: string }) {
                     <div className="card">
                         <h1>Sign in to join</h1>
                         <p className="muted">Use the same XPRTO account you booked with.</p>
+
+                        {/* Above the form, and it reads the role selected below —
+                            signing in as the wrong side lands you in a room you
+                            are not a party to and gets refused. */}
+                        <GoogleSignIn
+                            role={signinRole}
+                            onSignedIn={issued => { token.current = issued; loadPreview(); }}
+                            onError={setSigninError}
+                        />
+
                         <form onSubmit={signIn} noValidate>
                             <label htmlFor="email">Email</label>
                             <input id="email" name="email" type="email" autoComplete="username" required />
@@ -397,7 +409,10 @@ export function SessionRoom({ slug }: { slug: string }) {
                             <input id="password" name="password" type="password" autoComplete="current-password" required />
 
                             <label htmlFor="role">I am the</label>
-                            <select id="role" name="role" defaultValue="client">
+                            <select
+                                id="role" name="role" value={signinRole}
+                                onChange={e => setSigninRole(e.target.value)}
+                            >
                                 <option value="client">Client</option>
                                 <option value="trainer">Expert / Trainer</option>
                                 <option value="admin">Admin</option>

@@ -63,13 +63,31 @@ export async function api<T = unknown>(
         const data = await res.json().catch(() => ({}));
         return { ok: res.ok, status: res.status, data };
     } catch {
-        // A network failure and a refusal are different things and have to read
-        // differently. "Check your connection" is useless advice when the real
-        // answer is "your booking was cancelled".
+        /**
+         * fetch throws for two very different reasons, and they look identical
+         * from here: the device is offline, or the browser refused the request
+         * before sending it — which is what a CORS rejection is.
+         *
+         * The first version of this said "check your connection" for both, and
+         * that cost real time: the page was deployed to a Vercel URL that was
+         * not in the API's allowlist, so every request was blocked at the
+         * browser and the message sent everyone looking at the wi-fi.
+         *
+         * navigator.onLine is not a reliable "you have internet" — it only
+         * knows whether an interface is up — but it IS reliable in the negative
+         * direction, which is the one that matters. If the browser says it is
+         * online, the connection is not the story.
+         */
+        const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+
         return {
             ok: false,
             status: 0,
-            data: { message: "Could not reach XPRTO. Check your connection." },
+            data: {
+                message: offline
+                    ? "You appear to be offline. Check your connection and try again."
+                    : `Could not reach XPRTO at ${API_BASE}. If this keeps happening, this page's address may not be allowed by the API yet.`,
+            },
         };
     }
 }

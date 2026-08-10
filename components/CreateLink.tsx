@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { GoogleSignIn } from "@/components/GoogleSignIn";
 
 /**
  * Make a test session link.
@@ -119,6 +120,11 @@ export function CreateLink() {
                         <>
                             <h1>Sign in</h1>
                             <p className="muted">Admin account.</p>
+                            <GoogleSignIn
+                                role="admin"
+                                onSignedIn={issued => { token.current = issued; setSignedIn(true); }}
+                                onError={setError}
+                            />
                             <form onSubmit={signIn} noValidate>
                                 <label htmlFor="email">Email</label>
                                 <input id="email" name="email" type="email" autoComplete="username" required />

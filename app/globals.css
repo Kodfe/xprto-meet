@@ -319,3 +319,23 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .link button { margin-top: 10px; }
 
 .link-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-muted); }
+
+/* Google's button draws itself; this only positions it and separates it from
+   the password form below. */
+.google { margin-top: 16px; }
+.google .small { margin: 8px 0 0; font-size: 12.5px; }
+
+.or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+.or::before, .or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
