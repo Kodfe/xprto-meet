@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>XPRTO Session</title>
+
+<!--
+  Never indexed. A session URL in a search result would defeat the whole
+  design, and crawlers follow links that get pasted into public places.
+-->
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="no-referrer" />
+
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!--
+  The session page.
+  ==================
+
+  WHY THIS IS PLAIN HTML AND NOT A FRAMEWORK
+
+  It is one screen with four states and no routing to speak of. A React build
+  would add a toolchain, a dependency tree and a build step to a page whose job
+  is to work, immediately, on a phone with two bars of signal, at the exact
+  minute someone has paid to be somewhere. Fewer moving parts is the feature.
+
+  WHY THE SDK IS VENDORED
+
+  public/vendor/agora-rtc-sdk.js is a copy from npm, served from our own origin.
+  Loading it from a third-party CDN would mean a session cannot start when that
+  CDN is having a bad day, and would hand a third party a request on every join.
+
+  AUTH
+
+  This is a different registrable domain from xprto.com on purpose, so the
+  session cookie is not sent here. The page signs in against the API and holds
+  the token in memory only — not localStorage — so closing the tab ends it. See
+  the note above signIn().
+-->
+
+<main id="app">
+  <header class="bar">
+    <span class="brand">XPRTO</span>
+    <span id="bar-status" class="status"></span>
+  </header>
+
+  <!-- 1. Loading ------------------------------------------------------- -->
+  <section id="view-loading" class="view">
+    <div class="card">
+      <p class="muted">Checking this session…</p>
+    </div>
+  </section>
+
+  <!-- 2. Sign in ------------------------------------------------------- -->
+  <section id="view-signin" class="view" hidden>
+    <div class="card">
+      <h1>Sign in to join</h1>
+      <p class="muted">Use the same XPRTO account you booked with.</p>
+
+      <form id="signin-form" novalidate>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+        <label for="role">I am the</label>
+        <select id="role" name="role">
+          <option value="client">Client</option>
+          <option value="trainer">Expert / Trainer</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        <p id="signin-error" class="error" hidden></p>
+        <button id="signin-submit" type="submit">Sign in</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 3. Consent ------------------------------------------------------- -->
+  <!--
+    The gate, and the reason it exists before a single frame of video.
+
+    Two jobs. It states what XPRTO does and does not cover, which is the honest
+    version of a deterrent — a session moved to a personal number has no payment
+    protection and no proof it happened, for EITHER side. And it takes consent
+    for the session record now, so that recording can be switched on later
+    without a second conversation with people who have already been meeting for
+    months. Consent cannot be gathered retroactively.
+  -->
+  <section id="view-consent" class="view" hidden>
+    <div class="card">
+      <h1 id="consent-title">Before you join</h1>
+      <p id="consent-service" class="muted"></p>
+
+      <div class="notice">
+        <p id="consent-body"></p>
+      </div>
+
+      <ul class="facts">
+        <li id="consent-when"></li>
+        <li id="consent-footer"></li>
+      </ul>
+
+      <label class="check">
+        <input id="consent-agree" type="checkbox" />
+        <span>
+          I understand this session takes place on XPRTO, that my joining and
+          leaving times are recorded, and that XPRTO may keep a record of this
+          session for safety and to resolve disputes.
+        </span>
+      </label>
+
+      <p id="consent-error" class="error" hidden></p>
+      <button id="consent-join" type="button" disabled>Join session</button>
+    </div>
+  </section>
+
+  <!-- 4. In the session ------------------------------------------------ -->
+  <section id="view-room" class="view room" hidden>
+    <div class="stage">
+      <div id="remote" class="tile remote">
+        <p id="remote-waiting" class="waiting">Waiting for the other person to join…</p>
+      </div>
+      <div id="local" class="tile local"></div>
+    </div>
+
+    <div class="controls">
+      <button id="btn-mic" type="button" class="ctrl" aria-pressed="false">Mute</button>
+      <button id="btn-cam" type="button" class="ctrl" aria-pressed="false">Camera off</button>
+      <button id="btn-leave" type="button" class="ctrl danger">Leave</button>
+    </div>
+  </section>
+
+  <!-- 5. Anything that stopped us -------------------------------------- -->
+  <section id="view-message" class="view" hidden>
+    <div class="card">
+      <h1 id="message-title">This session is not available</h1>
+      <p id="message-body" class="muted"></p>
+      <button id="message-retry" type="button" hidden>Try again</button>
+    </div>
+  </section>
+</main>
+
+<script src="/vendor/agora-rtc-sdk.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
