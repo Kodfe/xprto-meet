@@ -8,6 +8,7 @@ import type {
 import { api, roomPath, type Credentials, type Preview } from "@/lib/api";
 import { Chat } from "@/components/Chat";
 import { GoogleSignIn } from "@/components/GoogleSignIn";
+import { HealthPanel } from "@/components/HealthPanel";
 
 /**
  * The session.
@@ -152,6 +153,7 @@ export function SessionRoom({ slug }: { slug: string }) {
     const [camOn, setCamOn] = useState(true);
     const [sharing, setSharing] = useState(false);
     const [chatOpen, setChatOpen] = useState(false);
+    const [healthOpen, setHealthOpen] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
     const [peerVideo, setPeerVideo] = useState(false);
     const [peerNote, setPeerNote] = useState("Waiting for the other person to join…");
@@ -481,6 +483,14 @@ export function SessionRoom({ slug }: { slug: string }) {
                         <div ref={localBox} className="tile local" />
                     </div>
 
+                    {healthOpen && preview?.booking_id ? (
+                        <HealthPanel
+                            slug={slug}
+                            token={token.current}
+                            onClose={() => setHealthOpen(false)}
+                        />
+                    ) : null}
+
                     {chatOpen && preview?.booking_id ? (
                         <Chat
                             bookingId={preview.booking_id}
@@ -514,9 +524,20 @@ export function SessionRoom({ slug }: { slug: string }) {
                         {preview?.booking_id ? (
                             <button
                                 type="button" className="ctrl" aria-pressed={chatOpen}
-                                onClick={() => setChatOpen(o => !o)}
+                                onClick={() => { setChatOpen(o => !o); setHealthOpen(false); }}
                             >
                                 {chatOpen ? "Hide chat" : "Chat"}
+                            </button>
+                        ) : null}
+                        {/* Trainer only, and only on a real booking — the endpoint
+                            resolves the client from the booking, and a test room
+                            has none. */}
+                        {preview?.you_are === "trainer" && preview?.booking_id ? (
+                            <button
+                                type="button" className="ctrl" aria-pressed={healthOpen}
+                                onClick={() => { setHealthOpen(o => !o); setChatOpen(false); }}
+                            >
+                                {healthOpen ? "Hide record" : "Client record"}
                             </button>
                         ) : null}
                         <button type="button" className="ctrl danger" onClick={() => leave()}>
