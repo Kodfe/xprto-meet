@@ -429,10 +429,35 @@ export function SessionRoom({ slug }: { slug: string }) {
                 </section>
             )}
 
-            {view === "warning" && preview && (
+            {view === "warning" && preview && (() => {
+                /**
+                 * A missing field must not white-screen this page.
+                 *
+                 * It did: the server was still sending the old single `notice`
+                 * while this read `warning.title`, so signing in threw
+                 * "cannot read properties of undefined" and React unmounted the
+                 * whole app. The person sees "Application error" at the moment
+                 * they are trying to join something they paid for, and there is
+                 * no way back from it.
+                 *
+                 * The server is fixed, and this makes the class of bug survivable
+                 * rather than fatal. A generic warning still says the important
+                 * thing; a blank page says nothing at all.
+                 */
+                const warning = preview.warning ?? {
+                    title: "Before you join",
+                    lead: "This session takes place on XPRTO.",
+                    points: [
+                        "Do not exchange personal contact details or arrange sessions outside XPRTO.",
+                        "Payment protection and dispute support apply only to sessions held here.",
+                    ],
+                    footer: "Your joining and leaving times are recorded.",
+                    consent: "I understand this session takes place on XPRTO and that a record is kept.",
+                };
+                return (
                 <section className="view">
                     <div className="card">
-                        <h1>{preview.warning.title}</h1>
+                        <h1>{warning.title}</h1>
                         <p className="muted">{preview.service || "XPRTO session"}</p>
 
                         {/* The hard warning. Written per role on the server — the
@@ -440,9 +465,9 @@ export function SessionRoom({ slug }: { slug: string }) {
                             when a session moves off the platform, so they are not
                             shown the same words. */}
                         <div className="notice">
-                            <p className="lead">{preview.warning.lead}</p>
+                            <p className="lead">{warning.lead}</p>
                             <ul>
-                                {preview.warning.points.map((point, i) => <li key={i}>{point}</li>)}
+                                {(warning.points ?? []).map((point, i) => <li key={i}>{point}</li>)}
                             </ul>
                         </div>
 
@@ -452,7 +477,7 @@ export function SessionRoom({ slug }: { slug: string }) {
                                     Open from {timeOf(preview.opens_at)} until {timeOf(preview.closes_at)}.
                                 </li>
                             )}
-                            <li>{preview.warning.footer}</li>
+                            <li>{warning.footer}</li>
                         </ul>
 
                         <label className="check">
@@ -462,7 +487,7 @@ export function SessionRoom({ slug }: { slug: string }) {
                                 disabled={!preview.can_join}
                                 onChange={e => setAgreed(e.target.checked)}
                             />
-                            <span>{preview.warning.consent}</span>
+                            <span>{warning.consent}</span>
                         </label>
 
                         {joinError && <p className="error">{joinError}</p>}
@@ -472,7 +497,8 @@ export function SessionRoom({ slug }: { slug: string }) {
                         </button>
                     </div>
                 </section>
-            )}
+                );
+            })()}
 
             {view === "room" && (
                 <section className="view room">
